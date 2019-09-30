@@ -16,7 +16,9 @@ import (
 	"github.com/qianlnk/pgbar"
 )
 
-// Crawl posts from CSDN
+// Crawl posts from csdn
+// build posts to hexo style
+
 const (
 	ListPostURL   = "https://blog.csdn.net/%s/article/list/%d?"
 	PostDetailURL = "https://mp.csdn.net/mdeditor/getArticle?id=%s"
@@ -47,6 +49,7 @@ type PostDetail struct {
 var (
 	username    string
 	page        int
+	cookie string
 	currentPage = 1
 	count       int
 	wg          sync.WaitGroup
@@ -55,6 +58,7 @@ var (
 
 func init() {
 	flag.StringVar(&username, "username", "junmoxi", "your csdn username")
+	flag.StringVar(&cookie, "cookie", "UserName=junmoxi; UserToken=c3c29cca48be43c4884fe36d052d5852;", "your csdn cookie")
 	flag.IntVar(&page, "page", -1, "download pages")
 	flag.Parse()
 }
@@ -64,6 +68,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+
 	bar = pgbar.NewBar(0, "下载进度", len(urls))
 	for _, url := range urls {
 		wg.Add(1)
@@ -78,7 +83,6 @@ func crawlPosts(username string) ([]string, error) {
 	client := http.Client{}
 	var (
 		urls []string
-		err  error
 	)
 
 	for {
@@ -108,38 +112,36 @@ func crawlPosts(username string) ([]string, error) {
 		}
 		currentPage++
 	}
-
-	return urls, err
 }
 
-func crawlPostMarkdown(url string) (*PostDetail, error) {
+func crawlPostMarkdown(url string) {
 	index := strings.LastIndex(url, "/")
 	id := url[index+1:]
 
 	client := http.Client{}
 
 	req, _ := http.NewRequest("GET", fmt.Sprintf(PostDetailURL, id), nil)
-	req.Header.Set("cookie", "UserName=junmoxi; UserToken=de709e85392f4b8a8d19d69eb2273c56;")
+	req.Header.Set("cookie", cookie)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	post := new(DetailData)
 	err = json.Unmarshal(data, post)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	go buildPost(post.Data)
-
-	return nil, nil
+	if post.Data.Markdowncontent != "" {
+		go buildPost(post.Data)
+	}
 }
 
 func buildPost(post PostDetail) {
@@ -147,14 +149,18 @@ func buildPost(post PostDetail) {
 	date := postTime.Format("2006-01-02 15:03:04")
 	header := fmt.Sprintf(HexoHeader, post.Title, date, post.Tags, post.Categories)
 
-	ioutil.WriteFile(
+	err := ioutil.WriteFile(
 		fmt.Sprintf("%s.md", post.Title),
 		[]byte(fmt.Sprintf("%s\n%s", header, post.Markdowncontent)),
 		os.ModePerm)
 
+	if err != nil {
+		return
+	}
+
 	rand.Seed(time.Now().UnixNano())
 	d := rand.Intn(3) + 1
-	postTime = postTime.AddDate(0, 0, -d)
+	postTime = postTime.AddDate(0, 0, -d).Add(time.Hour)
 
 	count++
 
