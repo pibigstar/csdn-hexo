@@ -30,6 +30,14 @@ tags: [%s]
 categories: %s
 ---
 `
+	HtmlBody = `<html>
+<head>
+<title>%s</title>
+</head>
+<body>
+%s
+</body>
+</html>`
 )
 
 var postTime = time.Now()
@@ -41,6 +49,7 @@ type DetailData struct {
 type PostDetail struct {
 	Title           string `json:"title"`
 	Description     string `json:"description"`
+	Content         string `json:"content"`
 	Markdowncontent string `json:"markdowncontent"`
 	Tags            string `json:"tags"`
 	Categories      string `json:"categories"`
@@ -49,7 +58,7 @@ type PostDetail struct {
 var (
 	username    string
 	page        int
-	cookie string
+	cookie      string
 	currentPage = 1
 	count       int
 	wg          sync.WaitGroup
@@ -58,7 +67,7 @@ var (
 
 func init() {
 	flag.StringVar(&username, "username", "junmoxi", "your csdn username")
-	flag.StringVar(&cookie, "cookie", "UserName=junmoxi; UserToken=c3c29cca48be43c4884fe36d052d5852;", "your csdn cookie")
+	flag.StringVar(&cookie, "cookie", "UserName=junmoxi; UserToken=c3c29cca48be43c4884fe36d052d5851;", "your csdn cookie")
 	flag.IntVar(&page, "page", -1, "download pages")
 	flag.Parse()
 }
@@ -140,12 +149,13 @@ func crawlPostMarkdown(url string) {
 	}
 
 	if post.Data.Markdowncontent != "" {
-		go buildPost(post.Data)
+		go buildMarkdownPost(post.Data)
+	} else if post.Data.Content != "" {
+		go buildHtmlPost(post.Data)
 	}
 }
 
-func buildPost(post PostDetail) {
-
+func buildMarkdownPost(post PostDetail) {
 	date := postTime.Format("2006-01-02 15:03:04")
 	header := fmt.Sprintf(HexoHeader, post.Title, date, post.Tags, post.Categories)
 
@@ -164,6 +174,21 @@ func buildPost(post PostDetail) {
 
 	count++
 
-	defer bar.Add()
 	defer wg.Done()
+	defer bar.Add()
+}
+
+func buildHtmlPost(post PostDetail) {
+
+	html := fmt.Sprintf(HtmlBody, post.Title, post.Content)
+	err := ioutil.WriteFile(
+		fmt.Sprintf("%s.html", post.Title),
+		[]byte(fmt.Sprintf("%s", html)),
+		os.ModePerm)
+	if err != nil {
+		return
+	}
+
+	defer wg.Done()
+	defer bar.Add()
 }
