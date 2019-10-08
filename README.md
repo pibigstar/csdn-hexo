@@ -16,6 +16,19 @@ go run main.go -username "junmoxi" -cookie "UserName=junmoxi; UserToken=c3c29cca
 ```
 > 如果想下载别人的文章，那么将`username`更换为别人的即可，cookie还是用你的
 
+# 下载
+> 为了方便非Go语言用户使用，我也编译出了二进制文件，支持Windows、Linux和MAC用户
+
+[点击下载](https://github.com/pibigstar/csdn-hexo/releases/tag/v1.1)
+
+**使用**
+> 以Windows用户为例
+
+```bash
+main.exe -username 你的csdn用户名 -cookie 你csdn的cookie
+```
+
+
 # cookie获取
 ![](cookie.png)
 
