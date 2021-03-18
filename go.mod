@@ -1,4 +1,4 @@
-module csdn-hexo
+module github.com/pibigstar/csdn-hexo
 
 go 1.12
 
